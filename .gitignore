@@ -1,0 +1,9 @@
+.venv/
+*.pyc
+__pycache__/
+cdk.out/
+.cdk.staging/
+cdk.context.json
+outputs.json
+*.swp
+.DS_Store
