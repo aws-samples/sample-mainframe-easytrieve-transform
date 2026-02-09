@@ -2,47 +2,47 @@
 
 ## Summary
 
-This repository provides Infrastructure as Code (IaC) to quickly set up an AWS environment for transforming Easytrieve code to modern languages using AWS Transform Custom. It deploys a ready-to-use EC2 instance with all necessary tools, permissions, and network configurations to start transforming your legacy Easytrieve applications immediately.
+This repository provides **production-ready** Infrastructure as Code (IaC) to deploy a secure AWS environment for transforming Easytrieve code to modern languages using AWS Transform Custom. It creates a fully private EC2 instance with all necessary tools, permissions, and network configurations following AWS security best practices.
 
 ## What It Does
 
-- Deploys an EC2 Linux instance (Amazon Linux 2023) with Git, Node.js, and ATX CLI pre-installed
-- Configures IAM roles with full access to AWS Transform, Transform Custom, and S3
-- Sets up VPC with private endpoints for secure AWS service access
+- Deploys an EC2 Linux instance (Amazon Linux 2023) in a **private subnet** with Git, Node.js, and ATX CLI pre-installed
+- Configures IAM roles with least-privilege access to AWS Transform, Transform Custom, and S3
+- Sets up VPC with **NAT Gateway** for secure outbound internet access (ATX CLI installation)
+- Implements **4 VPC endpoints** for private AWS service connectivity (Transform Custom, SSM, S3)
 - Enables SSM Session Manager for secure, keyless instance access
-- Implements security best practices (EBS encryption, IMDSv2, least-privilege networking)
+- Implements enterprise-grade security (EBS encryption, IMDSv2, no public IP, VPC endpoint policies)
 
 ## Target Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         VPC (10.0.0.0/16)                   │
-│                                                             │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │              Public Subnet (10.0.1.0/24)             │   │
-│  │                                                      │   │
-│  │  ┌────────────────────────────────────────────┐      │   │
-│  │  │   EC2 Instance (Amazon Linux 2023)         │      │   │
-│  │  │   - Git, Node.js, ATX CLI                  │      │   │
-│  │  │   - IAM Role (Transform + S3 access)       │      │   │
-│  │  │   - SSM Session Manager enabled            │      │   │
-│  │  └────────────────────────────────────────────┘      │   │
-│  │                      │                               │   │
-│  │                      │ HTTPS (443)                   │   │
-│  │                      ▼                               │   │
-│  │  ┌────────────────────────────────────────────┐      │   │
-│  │  │   VPC Endpoints (Private DNS enabled)      │      │   │
-│  │  │   - Transform Custom Interface Endpoint    │      │   │
-│  │  │   - S3 Gateway Endpoint                    │      │   │
-│  │  └────────────────────────────────────────────┘      │   │
-│  └──────────────────────────────────────────────────────┘   │
-│                                                             │
-│  Internet Gateway (for package downloads & SSM)             │
-└─────────────────────────────────────────────────────────────┘
-                          │
-                          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      VPC (10.0.0.0/16)                          │
+│                                                                 │
+│  ┌──────────────────────┐      ┌──────────────────────────┐   │
+│  │  Public Subnet       │      │  Private Subnet          │   │
+│  │  (10.0.1.0/24)       │      │  (10.0.2.0/24)           │   │
+│  │                      │      │                          │   │
+│  │  ┌────────────────┐  │      │  ┌────────────────────┐ │   │
+│  │  │  NAT Gateway   │◄─┼──────┼──│  EC2 Instance      │ │   │
+│  │  │  (Elastic IP)  │  │      │  │  (No Public IP)    │ │   │
+│  │  └────────────────┘  │      │  │  - Git, Node, ATX  │ │   │
+│  │         │             │      │  │  - IAM Role        │ │   │
+│  │         │             │      │  └────────────────────┘ │   │
+│  │  ┌──────▼──────────┐ │      │           │             │   │
+│  │  │ Internet Gateway│ │      │  ┌────────▼──────────┐  │   │
+│  │  └─────────────────┘ │      │  │  VPC Endpoints    │  │   │
+│  └──────────────────────┘      │  │  - Transform      │  │   │
+│                                 │  │  - SSM (3)        │  │   │
+│                                 │  │  - S3             │  │   │
+│                                 │  └───────────────────┘  │   │
+│                                 └──────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
                     AWS Transform Custom
                     AWS S3
+                    Internet (ATX CLI download)
 ```
 
 ## Prerequisites
@@ -141,12 +141,37 @@ aws s3 cp s3://my-bucket/output/ ./transformed-code/ --recursive
 
 | Component | Details |
 |-----------|---------|
-| **EC2 Instance** | t3.medium, Amazon Linux 2023, 20GB encrypted EBS |
+| **EC2 Instance** | t3.medium, Amazon Linux 2023, 20GB encrypted EBS, **private subnet** |
 | **Pre-installed Tools** | Git, Node.js, NPM, ATX CLI, AWS CLI |
-| **IAM Permissions** | Full access to Transform, Transform Custom, and S3 |
-| **Network** | VPC with private endpoints for Transform Custom and S3 |
-| **Security** | SSM Session Manager, IMDSv2, encrypted storage |
+| **IAM Permissions** | Transform/Transform Custom (full), S3 (object operations only) |
+| **Network** | Private subnet with NAT Gateway + 4 VPC endpoints |
+| **Security** | No public IP, SSM Session Manager, IMDSv2, encrypted storage, VPC endpoint policies |
 | **Region** | us-east-1 |
+
+## Security Features (Production-Ready)
+
+### Network Security
+- **No Public IP**: Instance deployed in private subnet, completely isolated from internet
+- **NAT Gateway**: Provides outbound-only internet access for software downloads
+- **VPC Endpoints**: Private connectivity to AWS services (Transform Custom, SSM, S3)
+- **Endpoint Policies**: Transform Custom endpoint restricted to same AWS account only
+- **No Inbound Rules**: Security group blocks all inbound traffic
+
+### Data Security
+- **EBS Encryption**: All volumes encrypted at rest with AWS-managed keys
+- **IMDSv2 Enforced**: Protection against SSRF attacks (HttpTokens: required)
+- **Encrypted Transit**: All AWS service communication over HTTPS
+
+### Access Control
+- **SSM Session Manager Only**: No SSH keys, no open ports, IAM-based authentication
+- **Least Privilege IAM**: S3 permissions limited to object operations (no bucket deletion/policy changes)
+- **Max Session Duration**: IAM role sessions limited to 1 hour
+- **CloudTrail Integration**: All SSM sessions logged for audit
+
+### Compliance
+- **Latest AMI**: Amazon Linux 2023 with automatic security updates
+- **Resource Tagging**: Environment: Production, ManagedBy: CDK/CloudFormation
+- **GP3 Volumes**: Modern, performant storage with encryption
 
 ## Cleanup
 
@@ -161,14 +186,6 @@ aws cloudformation delete-stack \
 ```bash
 cdk destroy
 ```
-
-## Cost Estimate
-
-Approximate monthly costs (us-east-1):
-- EC2 t3.medium: ~$30/month
-- VPC Interface Endpoint: ~$7/month
-- S3 storage: Variable
-- **Total: ~$37/month** (excluding data transfer and S3 storage)
 
 ## Troubleshooting
 
@@ -189,16 +206,24 @@ aws sts get-caller-identity
 
 **VPC endpoint connectivity:**
 ```bash
-# Test Transform Custom endpoint
-curl -I https://transform-custom.us-east-1.api.aws
-# Should resolve to private IP (10.x.x.x)
+# Test Transform Custom endpoint (should resolve to private IP)
+nslookup transform-custom.us-east-1.api.aws
+# Should resolve to 10.0.2.x (private subnet)
+
+# Test internet access via NAT Gateway
+curl -I https://desktop-release.transform.us-east-1.api.aws
+# Should return: HTTP 200 OK
+
+# Verify no public IP
+curl -s http://169.254.169.254/latest/meta-data/public-ipv4
+# Should return: empty or error
 ```
 
 ## Support
 
 For issues with:
 - **Infrastructure deployment**: Check CloudFormation/CDK logs
-- **AWS Transform Custom**: See [AWS Transform Documentation](https://docs.aws.amazon.com/transform/latest/userguide/)
+- **AWS Transform Custom**: See [AWS Transform Custom Documentation](https://docs.aws.amazon.com/transform/latest/userguide/custom.html)
 - **Easytrieve transformation**: Refer to AWS Transform Custom user guide
 
 ## License

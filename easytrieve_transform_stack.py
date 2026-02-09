@@ -15,9 +15,14 @@ class EasytrieveTransformStack(Stack):
                     name="Public",
                     subnet_type=ec2.SubnetType.PUBLIC,
                     cidr_mask=24
+                ),
+                ec2.SubnetConfiguration(
+                    name="Private",
+                    subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS,
+                    cidr_mask=24
                 )
             ],
-            nat_gateways=0
+            nat_gateways=1
         )
 
         ec2_sg = ec2.SecurityGroup(
@@ -39,6 +44,24 @@ class EasytrieveTransformStack(Stack):
             "S3VPCEndpoint",
             service=ec2.GatewayVpcEndpointAwsService.S3
         )
+        
+        cfn_s3_endpoint = s3_endpoint.node.default_child
+        cfn_s3_endpoint.add_property_override("PolicyDocument", {
+            "Statement": [{
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": [
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:DeleteObject",
+                    "s3:ListBucket",
+                    "s3:GetBucketLocation",
+                    "s3:GetObjectVersion",
+                    "s3:ListBucketVersions"
+                ],
+                "Resource": "*"
+            }]
+        })
 
         transform_endpoint = ec2.InterfaceVpcEndpoint(
             self, "TransformCustomVPCEndpoint",
@@ -48,7 +71,49 @@ class EasytrieveTransformStack(Stack):
             ),
             private_dns_enabled=True,
             security_groups=[vpce_sg],
-            subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC)
+            subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS)
+        )
+        
+        cfn_transform_endpoint = transform_endpoint.node.default_child
+        cfn_transform_endpoint.add_property_override("PolicyDocument", {
+            "Statement": [{
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": "transform-custom:*",
+                "Resource": "*",
+                "Condition": {
+                    "StringEquals": {
+                        "aws:PrincipalAccount": cdk.Aws.ACCOUNT_ID
+                    }
+                }
+            }]
+        })
+
+        ssm_endpoint = ec2.InterfaceVpcEndpoint(
+            self, "SSMVPCEndpoint",
+            vpc=vpc,
+            service=ec2.InterfaceVpcEndpointAwsService.SSM,
+            private_dns_enabled=True,
+            security_groups=[vpce_sg],
+            subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS)
+        )
+
+        ssm_messages_endpoint = ec2.InterfaceVpcEndpoint(
+            self, "SSMMessagesVPCEndpoint",
+            vpc=vpc,
+            service=ec2.InterfaceVpcEndpointAwsService.SSM_MESSAGES,
+            private_dns_enabled=True,
+            security_groups=[vpce_sg],
+            subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS)
+        )
+
+        ec2_messages_endpoint = ec2.InterfaceVpcEndpoint(
+            self, "EC2MessagesVPCEndpoint",
+            vpc=vpc,
+            service=ec2.InterfaceVpcEndpointAwsService.EC2_MESSAGES,
+            private_dns_enabled=True,
+            security_groups=[vpce_sg],
+            subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS)
         )
 
         role = iam.Role(
@@ -69,7 +134,15 @@ class EasytrieveTransformStack(Stack):
         role.add_to_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
-                actions=["s3:*"],
+                actions=[
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:DeleteObject",
+                    "s3:ListBucket",
+                    "s3:GetBucketLocation",
+                    "s3:GetObjectVersion",
+                    "s3:ListBucketVersions"
+                ],
                 resources=["*"]
             )
         )
@@ -99,7 +172,7 @@ class EasytrieveTransformStack(Stack):
             role=role,
             security_group=ec2_sg,
             user_data=user_data,
-            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS),
             block_devices=[
                 ec2.BlockDevice(
                     device_name="/dev/xvda",
@@ -114,12 +187,13 @@ class EasytrieveTransformStack(Stack):
             require_imdsv2=True
         )
         Tags.of(instance).add("Name", "TransformCustomEC2Instance")
-        Tags.of(instance).add("Environment", "Development")
+        Tags.of(instance).add("Environment", "Production")
         Tags.of(instance).add("ManagedBy", "CDK")
 
         CfnOutput(self, "InstanceId", value=instance.instance_id, export_name=f"{self.stack_name}-InstanceId")
-        CfnOutput(self, "InstancePublicIP", value=instance.instance_public_ip, export_name=f"{self.stack_name}-PublicIP")
+        CfnOutput(self, "InstancePrivateIP", value=instance.instance_private_ip, export_name=f"{self.stack_name}-PrivateIP")
         CfnOutput(self, "VPCId", value=vpc.vpc_id, export_name=f"{self.stack_name}-VPCId")
         CfnOutput(self, "TransformCustomVPCEndpointId", value=transform_endpoint.vpc_endpoint_id, export_name=f"{self.stack_name}-TransformCustomVPCE")
         CfnOutput(self, "S3VPCEndpointId", value=s3_endpoint.vpc_endpoint_id, export_name=f"{self.stack_name}-S3VPCE")
+        CfnOutput(self, "SSMVPCEndpointId", value=ssm_endpoint.vpc_endpoint_id, export_name=f"{self.stack_name}-SSMVPCE")
         CfnOutput(self, "ConnectCommand", value=f"aws ssm start-session --target {instance.instance_id} --region us-east-1")
