@@ -117,25 +117,115 @@ atx --version
 aws sts get-caller-identity
 ```
 
-**3. Follow AWS Transform Custom guide:**
+**3. Upload transformation documents:**
+
+From your local machine, upload the required files to the EC2 instance:
+
+```bash
+# Get instance ID
+INSTANCE_ID=$(aws cloudformation describe-stacks \
+  --stack-name easytrieve-transform-stack \
+  --query 'Stacks[0].Outputs[?OutputKey==`InstanceId`].OutputValue' \
+  --output text)
+
+# Upload transformation definition and summaries
+aws s3 cp documents/transformation_definition.md s3://your-bucket/transform-docs/
+aws s3 cp documents/summaries.md s3://your-bucket/transform-docs/
+
+# Upload reference documentation
+aws s3 cp documents/ca-easytrieve-report-generator-11-6.txt s3://your-bucket/transform-docs/
+```
+
+Then on the EC2 instance:
+
+```bash
+# Create directory structure
+mkdir -p ~/transform-workspace/documents
+
+# Download files from S3
+aws s3 cp s3://your-bucket/transform-docs/transformation_definition.md ~/transform-workspace/
+aws s3 cp s3://your-bucket/transform-docs/summaries.md ~/transform-workspace/
+aws s3 cp s3://your-bucket/transform-docs/ca-easytrieve-report-generator-11-6.txt ~/transform-workspace/documents/
+
+# Verify files
+ls -la ~/transform-workspace/
+ls -la ~/transform-workspace/documents/
+```
+
+**4. Create custom transformation definition:**
+
+```bash
+# Navigate to workspace
+cd ~/transform-workspace
+
+# Create custom transformation definition using ATX
+atx transform-definition create \
+  --base-definition transformation_definition.md \
+  --summaries summaries.md \
+  --reference-docs documents/ca-easytrieve-report-generator-11-6.txt \
+  --output custom-transform-definition.json
+
+# Review the generated custom transformation definition
+cat custom-transform-definition.json
+```
+
+**5. Review and publish transformation definition:**
+
+```bash
+# Review the custom transformation definition
+atx transform-definition review custom-transform-definition.json
+
+# If satisfied, publish the transformation definition
+atx transform-definition publish \
+  --definition custom-transform-definition.json \
+  --name "Easytrieve-Custom-Transform" \
+  --description "Custom transformation definition for Easytrieve to modern languages"
+
+# Verify publication
+atx transform-definition list
+```
+
+**6. Follow AWS Transform Custom guide:**
 
 Visit the [AWS Transform Custom Getting Started Guide](https://docs.aws.amazon.com/transform/latest/userguide/custom-get-started.html) to:
-- Upload your Easytrieve source code to S3
-- Configure transformation settings
-- Run transformations using ATX CLI
+- Run transformations using your custom transformation definition
+- Monitor transformation progress
 - Review and download transformed code
 
 **Example transformation workflow:**
 ```bash
-# Upload Easytrieve code to S3
+# Upload Easytrieve source code to S3
 aws s3 cp my-easytrieve-code.ezt s3://my-bucket/source/
 
-# Run transformation (example)
-atx transform --source s3://my-bucket/source/ --target-language java
+# Run transformation using custom definition
+atx transform start \
+  --source s3://my-bucket/source/my-easytrieve-code.ezt \
+  --target-language java \
+  --transform-definition "Easytrieve-Custom-Transform" \
+  --output s3://my-bucket/output/
 
-# Download results
+# Monitor transformation status
+atx transform status --job-id <job-id>
+
+# Download results when complete
 aws s3 cp s3://my-bucket/output/ ./transformed-code/ --recursive
 ```
+
+## Document Files Structure
+
+The `documents/` folder contains required files for custom transformation:
+
+```
+documents/
+├── transformation_definition.md          # Base transformation definition
+├── summaries.md                          # Transformation summaries
+└── ca-easytrieve-report-generator-11-6.txt  # Easytrieve reference documentation
+```
+
+**Purpose of each file:**
+- **transformation_definition.md**: Defines how Easytrieve constructs map to target languages
+- **summaries.md**: Contains transformation rules and patterns
+- **ca-easytrieve-report-generator-11-6.txt**: CA Easytrieve Report Generator reference manual for context
 
 ## What's Included
 
@@ -188,6 +278,32 @@ cdk destroy
 ```
 
 ## Troubleshooting
+
+**Stack deletion fails (subnet in use):**
+```bash
+# VPC endpoint network interfaces may not delete immediately
+# Find and manually delete network interfaces:
+
+# Get VPC ID
+VPC_ID=$(aws cloudformation describe-stacks \
+  --stack-name easytrieve-transform-stack \
+  --query 'Stacks[0].Outputs[?OutputKey==`VPCId`].OutputValue' \
+  --output text)
+
+# List network interfaces
+aws ec2 describe-network-interfaces \
+  --filters "Name=vpc-id,Values=$VPC_ID" \
+  --query 'NetworkInterfaces[?Status==`available`].[NetworkInterfaceId,Description]' \
+  --output table
+
+# Delete each network interface
+aws ec2 delete-network-interface --network-interface-id <ENI-ID>
+
+# Retry stack deletion
+cdk destroy
+# or
+aws cloudformation delete-stack --stack-name easytrieve-transform-stack
+```
 
 **ATX CLI not found:**
 ```bash

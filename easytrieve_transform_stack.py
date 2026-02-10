@@ -152,7 +152,10 @@ class EasytrieveTransformStack(Stack):
             "set -e",
             "exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1",
             "dnf update -y",
-            "dnf install -y git nodejs npm",
+            "dnf install -y git",
+            
+            "curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -",
+            "dnf install -y nodejs",
             "curl -fsSL https://desktop-release.transform.us-east-1.api.aws/install.sh | bash",
             "[ -f \"$HOME/.local/bin/atx\" ] && ln -sf \"$HOME/.local/bin/atx\" /usr/local/bin/atx",
             "mkdir -p /root/.aws",
@@ -186,6 +189,13 @@ class EasytrieveTransformStack(Stack):
             ],
             require_imdsv2=True
         )
+        
+        # Ensure VPC endpoints are created before EC2 instance
+        instance.node.add_dependency(ssm_endpoint)
+        instance.node.add_dependency(ssm_messages_endpoint)
+        instance.node.add_dependency(ec2_messages_endpoint)
+        instance.node.add_dependency(transform_endpoint)
+        
         Tags.of(instance).add("Name", "TransformCustomEC2Instance")
         Tags.of(instance).add("Environment", "Production")
         Tags.of(instance).add("ManagedBy", "CDK")
