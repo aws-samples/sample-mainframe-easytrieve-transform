@@ -98,6 +98,15 @@ cdk deploy
 Once deployed, connect to your instance and start transforming:
 
 **1. Connect to the instance:**
+
+**Via AWS Console (Recommended):**
+1. Go to AWS Console → EC2 → Instances
+2. Select your instance (Name: `TransformCustomEC2Instance`)
+3. Click "Connect" button at the top
+4. Choose "Session Manager" tab
+5. Click "Connect" button
+
+**Via AWS CLI:**
 ```bash
 # Get instance ID from stack outputs
 aws cloudformation describe-stacks \
@@ -114,102 +123,33 @@ aws ssm start-session --target <instance-id> --region us-east-1
 git --version
 node --version
 atx --version
-aws sts get-caller-identity
 ```
 
-**3. Upload transformation documents:**
+**3. Upload transformation documents to EC2:**
 
-From your local machine, upload the required files to the EC2 instance:
+Upload the required transformation files from the `documents/` folder to your EC2 instance. Organize them in this structure:
 
-```bash
-# Get instance ID
-INSTANCE_ID=$(aws cloudformation describe-stacks \
-  --stack-name easytrieve-transform-stack \
-  --query 'Stacks[0].Outputs[?OutputKey==`InstanceId`].OutputValue' \
-  --output text)
-
-# Upload transformation definition and summaries
-aws s3 cp documents/transformation_definition.md s3://your-bucket/transform-docs/
-aws s3 cp documents/summaries.md s3://your-bucket/transform-docs/
-
-# Upload reference documentation
-aws s3 cp documents/ca-easytrieve-report-generator-11-6.txt s3://your-bucket/transform-docs/
+```
+~/transform-workspace/
+├── transformation_definition.md
+├── summaries.md
+└── reference_documents/
+    └── ca-easytrieve-report-generator-11-6.txt
 ```
 
-Then on the EC2 instance:
-
-```bash
-# Create directory structure
-mkdir -p ~/transform-workspace/documents
-
-# Download files from S3
-aws s3 cp s3://your-bucket/transform-docs/transformation_definition.md ~/transform-workspace/
-aws s3 cp s3://your-bucket/transform-docs/summaries.md ~/transform-workspace/
-aws s3 cp s3://your-bucket/transform-docs/ca-easytrieve-report-generator-11-6.txt ~/transform-workspace/documents/
-
-# Verify files
-ls -la ~/transform-workspace/
-ls -la ~/transform-workspace/documents/
-```
+The first two files go in the workspace root, and the easytrieve reference documentation goes in a `reference_documents/` subdirectory.
 
 **4. Create custom transformation definition:**
 
-```bash
-# Navigate to workspace
-cd ~/transform-workspace
-
-# Create custom transformation definition using ATX
-atx transform-definition create \
-  --base-definition transformation_definition.md \
-  --summaries summaries.md \
-  --reference-docs documents/ca-easytrieve-report-generator-11-6.txt \
-  --output custom-transform-definition.json
-
-# Review the generated custom transformation definition
-cat custom-transform-definition.json
-```
+Use the ATX CLI to create a custom transformation definition by providing the paths to your uploaded files. ATX will generate a custom transformation definition JSON file that combines your base definition, summaries, and reference documentation.
 
 **5. Review and publish transformation definition:**
 
-```bash
-# Review the custom transformation definition
-atx transform-definition review custom-transform-definition.json
+Review the generated custom transformation definition to ensure it meets your requirements. Once satisfied, publish it to AWS Transform Custom with a descriptive name. This makes it available for use in transformation jobs.
 
-# If satisfied, publish the transformation definition
-atx transform-definition publish \
-  --definition custom-transform-definition.json \
-  --name "Easytrieve-Custom-Transform" \
-  --description "Custom transformation definition for Easytrieve to modern languages"
+**6. Run Easytrieve transformations:**
 
-# Verify publication
-atx transform-definition list
-```
-
-**6. Follow AWS Transform Custom guide:**
-
-Visit the [AWS Transform Custom Getting Started Guide](https://docs.aws.amazon.com/transform/latest/userguide/custom-get-started.html) to:
-- Run transformations using your custom transformation definition
-- Monitor transformation progress
-- Review and download transformed code
-
-**Example transformation workflow:**
-```bash
-# Upload Easytrieve source code to S3
-aws s3 cp my-easytrieve-code.ezt s3://my-bucket/source/
-
-# Run transformation using custom definition
-atx transform start \
-  --source s3://my-bucket/source/my-easytrieve-code.ezt \
-  --target-language java \
-  --transform-definition "Easytrieve-Custom-Transform" \
-  --output s3://my-bucket/output/
-
-# Monitor transformation status
-atx transform status --job-id <job-id>
-
-# Download results when complete
-aws s3 cp s3://my-bucket/output/ ./transformed-code/ --recursive
-```
+Upload your Easytrieve source code to S3, then use the ATX CLI to start a transformation job with your published custom transformation definition. Monitor the transformation progress and download the transformed code when complete. Refer to the [AWS Transform Custom Getting Started Guide](https://docs.aws.amazon.com/transform/latest/userguide/custom-get-started.html) for detailed ATX CLI commands and transformation workflow.
 
 ## Document Files Structure
 
