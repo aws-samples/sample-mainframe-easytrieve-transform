@@ -85,6 +85,7 @@ Resources:
 
   PrivateRoute:
     Type: AWS::EC2::Route
+    DependsOn: NATGateway
     Properties:
       RouteTableId: !Ref PrivateRouteTable
       DestinationCidrBlock: 0.0.0.0/0
@@ -128,12 +129,12 @@ Resources:
           FromPort: 443
           ToPort: 443
           CidrIp: 0.0.0.0/0
-          Description: HTTPS to internet
+          Description: HTTPS to internet via NAT Gateway
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
-          Description: HTTP to internet
+          Description: HTTP to internet via NAT Gateway
       Tags:
         - Key: Name
           Value: TransformCustomEC2SG
@@ -149,6 +150,10 @@ Resources:
           ToPort: 443
           SourceSecurityGroupId: !Ref EC2SecurityGroup
           Description: HTTPS from EC2
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 127.0.0.1/32
+          Description: Deny all egress by default
       Tags:
         - Key: Name
           Value: TransformCustomVPCESG
@@ -232,6 +237,48 @@ Resources:
       SecurityGroupIds:
         - !Ref VPCEndpointSecurityGroup
 
+  TransformCustomManagedPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub ${AWS::StackName}-TransformCustomPolicy
+      Description: Managed policy for AWS Transform Custom access
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - transform-custom:*
+            Resource: '*'
+
+  S3ManagedPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub ${AWS::StackName}-S3Policy
+      Description: Managed policy for S3 access restricted to transformation buckets
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:DeleteObject
+              - s3:ListBucket
+              - s3:GetBucketLocation
+              - s3:GetObjectVersion
+              - s3:ListBucketVersions
+            Resource:
+              - !Sub 'arn:aws:s3:::${AWS::StackName}-*'
+              - !Sub 'arn:aws:s3:::${AWS::StackName}-*/*'
+              - 'arn:aws:s3:::easytrieve-transform-*'
+              - 'arn:aws:s3:::easytrieve-transform-*/*'
+          - Sid: AllowListAllBuckets
+            Effect: Allow
+            Action:
+              - s3:ListAllMyBuckets
+              - s3:GetBucketLocation
+            Resource: '*'
+
   EC2Role:
     Type: AWS::IAM::Role
     Properties:
@@ -244,31 +291,9 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - !Ref TransformCustomManagedPolicy
+        - !Ref S3ManagedPolicy
       MaxSessionDuration: 3600
-      Policies:
-        - PolicyName: TransformCustomAccess
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - transform:*
-                  - transform-custom:*
-                Resource: '*'
-        - PolicyName: S3Access
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:PutObject
-                  - s3:DeleteObject
-                  - s3:ListBucket
-                  - s3:GetBucketLocation
-                  - s3:GetObjectVersion
-                  - s3:ListBucketVersions
-                Resource: '*'
       Tags:
         - Key: Name
           Value: TransformCustomEC2Role
@@ -293,6 +318,8 @@ Resources:
       SubnetId: !Ref PrivateSubnet
       SecurityGroupIds:
         - !Ref EC2SecurityGroup
+      EbsOptimized: true
+      Monitoring: true
       BlockDeviceMappings:
         - DeviceName: /dev/xvda
           Ebs:
@@ -312,10 +339,11 @@ Resources:
           dnf update -y
           dnf install -y git 
 
-          # Install Node.js 20.x from NodeSource
+          # Install Node.js 20.x LTS from NodeSource
           curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
           dnf install -y nodejs
           
+          # Install ATX CLI via NAT Gateway
           curl -fsSL https://desktop-release.transform.us-east-1.api.aws/install.sh | bash
           [ -f "$HOME/.local/bin/atx" ] && ln -sf "$HOME/.local/bin/atx" /usr/local/bin/atx
           
