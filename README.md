@@ -1,8 +1,12 @@
 # Easytrieve to Modern Languages Transformation with AWS Transform Custom
 
+## Important Notice
+
+**This infrastructure template is provided as a reference implementation.** Before deploying to production, conduct a comprehensive security review, penetration testing, IAM audit, and compliance validation. Consult with your security and cloud architecture teams to ensure alignment with your organization's policies and requirements.
+
 ## Summary
 
-This repository provides **production-ready** Infrastructure as Code (IaC) to deploy a secure AWS environment for transforming Easytrieve code to modern languages using AWS Transform Custom. It creates a fully private EC2 instance with all necessary tools, permissions, and network configurations following AWS security best practices.
+This repository provides Infrastructure as Code (IaC) to deploy a secure AWS environment for transforming Easytrieve code to modern languages using AWS Transform Custom. It creates a fully private EC2 instance with all necessary tools, permissions, and network configurations following AWS security best practices.
 
 ## What It Does
 
