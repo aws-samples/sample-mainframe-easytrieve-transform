@@ -207,6 +207,15 @@ documents/
 - **Resource Tagging**: Environment: Production, ManagedBy: CDK/CloudFormation
 - **GP3 Volumes**: Modern, performant storage with encryption
 
+## Additional Security Recommendations
+
+Based on the threat model analysis (see THREATS.md), consider implementing these additional security controls:
+
+- **MFA for SSM Access**: Require MFA for all IAM users/roles that can initiate SSM sessions to the EC2 instance
+- **Software Integrity Verification**: Add checksum verification for Node.js and ATX CLI downloads in UserData, or use pre-baked AMIs with verified software
+- **GuardDuty**: Enable GuardDuty for runtime threat detection on the EC2 instance
+- **AWS Budgets**: Set up cost anomaly alerts to detect unexpected resource consumption
+
 ## Cleanup
 
 **CloudFormation:**
