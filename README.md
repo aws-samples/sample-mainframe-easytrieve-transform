@@ -285,6 +285,8 @@ For issues with:
 - **AWS Transform Custom**: See [AWS Transform Custom Documentation](https://docs.aws.amazon.com/transform/latest/userguide/custom.html)
 - **Easytrieve transformation**: Refer to AWS Transform Custom user guide
 
-## License
+## Security
+See CONTRIBUTING for more information.
 
-This code is provided as-is for use with AWS Transform Custom services.
+## Licence
+This library is licensed under the MIT-0 License. See the LICENSE file.
