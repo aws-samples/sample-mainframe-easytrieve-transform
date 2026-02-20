@@ -131,17 +131,7 @@ atx --version
 
 **3. Upload transformation documents to EC2:**
 
-Upload the required transformation files from the `documents/` folder to your EC2 instance. Organize them in this structure:
-
-```
-~/transform-workspace/
-├── transformation_definition.md
-├── summaries.md
-└── reference_documents/
-    └── ca-easytrieve-report-generator-11-6.txt
-```
-
-The first two files go in the workspace root, and the easytrieve reference documentation goes in a `reference_documents/` subdirectory.
+Upload the required transformation files from the `documents/` folder to your EC2 instance.
 
 **4. Create custom transformation definition:**
 
@@ -182,7 +172,7 @@ documents/
 | **Security** | No public IP, SSM Session Manager, IMDSv2, encrypted storage, VPC endpoint policies |
 | **Region** | us-east-1 |
 
-## Security Features (Production-Ready)
+## Security Features
 
 ### Network Security
 - **No Public IP**: Instance deployed in private subnet, completely isolated from internet
@@ -209,7 +199,7 @@ documents/
 
 ## Additional Security Recommendations
 
-Based on the threat model analysis (see THREATS.md), consider implementing these additional security controls:
+For production deployments, consider implementing these additional security con
 
 - **MFA for SSM Access**: Require MFA for all IAM users/roles that can initiate SSM sessions to the EC2 instance
 - **Software Integrity Verification**: Add checksum verification for Node.js and ATX CLI downloads in UserData, or use pre-baked AMIs with verified software
