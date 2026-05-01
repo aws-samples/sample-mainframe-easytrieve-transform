@@ -151,13 +151,15 @@ The `documents/` folder contains required files for custom transformation:
 
 ```
 documents/
-├── transformation_definition.md          # Base transformation definition
-├── summaries.md                          # Transformation summaries
-└── ca-easytrieve-report-generator-11-6.txt  # Easytrieve reference documentation
+├── transformation_definition.md            # Base transformation definition
+├── bre_transformation_definition.md        # Business Rule Extract (BRE) transformation definition
+├── summaries.md                            # Transformation summaries
+└── ca-easytrieve-report-generator-11-6.txt # Easytrieve reference documentation
 ```
 
 **Purpose of each file:**
 - **transformation_definition.md**: Defines how Easytrieve constructs map to target languages
+- **bre_transformation_definition.md**: Defines the 5-phase process for extracting comprehensive business rules from Easytrieve programs, COBOL programs, JCL job streams, copybooks, and control cards into two structured BRE documents that serve as input for downstream code transformation
 - **summaries.md**: Contains transformation rules and patterns
 - **ca-easytrieve-report-generator-11-6.txt**: CA Easytrieve Report Generator reference manual for context
 
