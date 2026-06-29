@@ -1,0 +1,12 @@
+{
+  "name": "EZT Validation Gate",
+  "version": "1.0.0",
+  "description": "Reminds user to confirm baseline output files before transformation runs",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Check that output-data/ contains baseline mainframe output files in EBCDIC format. If missing, stop and ask the user to supply them before proceeding with the transformation."
+  }
+}
