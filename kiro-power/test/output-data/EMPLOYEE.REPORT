@@ -1,0 +1,27 @@
+1                              EMPLOYEE DEPARTMENT REPORT
+                               RUN DATE: 06/25/2026
+
+ EMP ID EMPLOYEE NAME              DEPT    SALARY HIRE DATE
+ ------ -------------------------- ---- --------- ----------
+ 100001 Johnson, Robert M.         FIN   850.00   20000115
+ 100002 Williams, Sarah K.         FIN   925.00   19980320
+ 100014 Harris, Michelle K.        FIN   910.00   20020515
+   DEPARTMENT: FIN  TOTAL: 2685.00 COUNT: 3
+
+ 100003 Davis, Michael T.          HR    675.00   20010615
+ 100004 Brown, Jennifer L.         HR    710.00   20020912
+ 100011 Thomas, Christopher L.     HR    735.00   20220301
+   DEPARTMENT: HR   TOTAL: 2120.00 COUNT: 3
+
+ 100005 Martinez, Carlos R.        IT   1050.00   20180110
+ 100006 Anderson, Lisa M.          IT    980.00   20190315
+ 100007 Thompson, David W.         IT   1120.00   20200108
+ 100012 Jackson, Patricia A.       IT    950.00   20210615
+   DEPARTMENT: IT   TOTAL: 4100.00 COUNT: 4
+
+ 100008 Garcia, Maria S.           MKT   780.00   20050420
+ 100009 Wilson, James P.           MKT   825.00   19991201
+ 100013 White, Daniel R.           MKT   760.00   20080110
+   DEPARTMENT: MKT  TOTAL: 2365.00 COUNT: 3
+
+   GRAND TOTAL SALARY: 11270.00  TOTAL EMPLOYEES: 13
