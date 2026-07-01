@@ -1,12 +1,12 @@
 {
   "name": "EZT Validation Gate",
-  "version": "1.0.0",
-  "description": "Reminds user to confirm baseline output files before transformation runs",
+  "version": "1.1.0",
+  "description": "Enforces that BRE and baseline output exist before transformation runs",
   "when": {
     "type": "userTriggered"
   },
   "then": {
     "type": "askAgent",
-    "prompt": "Check that output-data/ contains baseline mainframe output files in EBCDIC format. If missing, stop and ask the user to supply them before proceeding with the transformation."
+    "prompt": "Before proceeding with transformation, verify BOTH conditions: (1) bre-doc/ folder contains the Business Rule Extract output — if empty, the BRE step was skipped and must be completed first. (2) output-data/ folder contains baseline mainframe output files in EBCDIC format. If EITHER is missing, STOP and tell the user exactly which step they need to complete. Do NOT allow transformation to proceed without both."
   }
 }

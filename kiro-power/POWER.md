@@ -16,7 +16,7 @@ keywords:
   - spring boot
   - jcl
 author: "Shubham Roy, AWS"
-version: "1.1.0"
+version: "1.2.0"
 ---
 
 # Easytrieve Modernization Power
@@ -28,57 +28,87 @@ Source repo: [sample-mainframe-easytrieve-transform](https://github.com/aws-samp
 
 ---
 
-## Prerequisites
+## Onboarding
 
-| Requirement | How to verify | Resolution |
-|---|---|---|
-| **aws-transform** Kiro Power | Check Powers panel | Install from Kiro Powers panel |
-| AWS credentials | `aws sts get-caller-identity` | `aws configure` with `AWSTransformCustomFullAccess` policy |
-| Remote infrastructure | `aws cloudformation describe-stacks --stack-name AtxInfrastructureStack` | Deploy via `aws-transform` power (see below) |
+Run these checks silently at the start of EVERY session. Report only failures.
 
-### How It Works
+### Step 1: Verify aws-transform Power is installed
+
+Check the Powers panel for `aws-transform`. If missing:
+> "Before we start, install the **aws-transform** power from the Kiro Powers panel.
+> It provides the tools I need to run transformations."
+
+Stop and wait.
+
+### Step 2: Verify AWS credentials
+
+```bash
+aws sts get-caller-identity
+```
+
+If fails:
+> "AWS credentials are not configured. Run `aws configure` with credentials that
+> have the `AWSTransformCustomFullAccess` managed policy attached."
+
+### Step 3: Verify remote infrastructure
+
+```bash
+aws cloudformation describe-stacks --stack-name AtxInfrastructureStack \
+  --query 'Stacks[0].StackStatus' --output text --region us-east-1
+```
+
+If not `CREATE_COMPLETE` or `UPDATE_COMPLETE`:
+> "The remote execution infrastructure is not deployed. I'll help you set it up —
+> it takes about 5 minutes and costs nothing when idle."
+
+Then guide through deployment using the `aws-transform` power's remote execution flow.
+
+### Step 4: Verify pre-built container image (CRITICAL)
+
+The Fargate container MUST use the pre-built image that includes Java 17, Maven 3.6+,
+and atx CLI. Verify:
+
+```bash
+cd ~/.aws/atx/custom/remote-infra 2>/dev/null && \
+  node -e "console.log(require('./cdk.json').context.prebuiltImageUri || 'NOT_SET')"
+```
+
+Expected: `public.ecr.aws/d9h8z6l7/aws-transform:latest`
+
+If `NOT_SET` or empty:
+> "⚠️ The container is not configured to use the pre-built image. This means Java and
+> Maven need to be installed on every run, adding 20+ minutes of delay.
+>
+> Fix: Set `prebuiltImageUri` in `~/.aws/atx/custom/remote-infra/cdk.json` to
+> `public.ecr.aws/d9h8z6l7/aws-transform:latest` and redeploy with `./setup.sh`."
+
+**Do NOT proceed until the pre-built image is confirmed. This is the #1 cause of
+slow transformations and timeouts.**
+
+### Step 5: Verify transformation definitions exist
+
+```bash
+atx custom def list --json 2>/dev/null | grep -i easytrieve
+```
+
+If no Easytrieve TDs found → load `td-bootstrap.md` to create them.
+
+---
+
+## How It Works
 
 This power uses **Lambda+Batch remote execution** from the `aws-transform` power:
 
 1. User provides S3 paths to EZT source + input/output data
-2. Kiro zips the workspace and uploads to the managed S3 bucket (`atx-source-code-{account}`)
+2. Kiro zips the workspace and uploads to managed S3 bucket (`atx-source-code-{account}`)
 3. Kiro submits a job via `aws lambda invoke --function-name atx-trigger-job`
-4. AWS Batch runs `atx custom def exec` in a Fargate container (~10 min per program)
+4. AWS Batch runs `atx custom def exec` in a Fargate container with Java 17 + Maven pre-installed
 5. Results land in `s3://atx-custom-output-{account}/transformations/{job}/`
 
-**Parallelism:** Multiple EZT programs run simultaneously — up to 128 concurrent.
-A portfolio of 50 EZT programs completes in ~12-15 minutes (same as 1 program).
+**Pre-built container includes:** Java 8/11/17/21/25 (Corretto), Maven, Gradle, Node.js,
+Python, Git, AWS CLI, atx CLI — all baked in, zero install time at runtime.
 
-### Infrastructure Setup (one-time)
-
-The `AtxInfrastructureStack` deploys:
-- 8 Lambda functions (trigger, status, terminate, list — single + batch)
-- AWS Batch/Fargate compute environment (costs nothing when idle)
-- S3 buckets for source code and output (KMS encrypted)
-- CloudWatch dashboard for monitoring
-- Pre-built container image with Java 17, Maven, atx CLI (no Docker needed)
-
-Deploy using the `aws-transform` power's remote execution flow, or manually:
-```bash
-git clone -b atx-remote-infra --single-branch \
-  https://github.com/aws-samples/aws-transform-custom-samples.git ~/.aws/atx/custom/remote-infra
-cd ~/.aws/atx/custom/remote-infra
-# Configure cdk.json with your VPC, subnets, security group
-./setup.sh
-```
-
-### Published Transformation Definitions (one-time)
-
-The EZT TDs must be published once per account:
-- **Easytrieve-Business-Rule-Extract** — extracts business rules from EZT source
-- **Easytrieve-to-Java-Transformation** — transforms EZT to Java with validation
-
-Create using the `aws-transform` power's in-chat TD creation flow with documents from:
-```
-https://github.com/aws-samples/sample-mainframe-easytrieve-transform/tree/main/documents
-```
-
-Verify: `atx custom def list --json | grep Easytrieve`
+**Parallelism:** Up to 128 concurrent programs. 50 programs complete in ~12-15 min.
 
 ---
 
@@ -95,6 +125,7 @@ Verify: `atx custom def list --json | grep Easytrieve`
 
 ### Epic 1: Deploy remote infrastructure
 - Deploy `AtxInfrastructureStack` (Lambda + Batch + S3)
+- MUST use pre-built image: `public.ecr.aws/d9h8z6l7/aws-transform:latest`
 - Requires: VPC with private subnets + NAT Gateway
 - ~5 min deploy, costs nothing when idle
 
@@ -103,61 +134,68 @@ Verify: `atx custom def list --json | grep Easytrieve`
 - Create BRE TD and Main TD via `atx json` in-chat flow
 - Publish both — reused for all future EZT workloads
 
-### Epic 3: Generate BRE (per workload)
+### Epic 3: Generate BRE (per workload) — MANDATORY
+
+**This step CANNOT be skipped.** The BRE drives transformation accuracy.
+
 - Zip EZT source → upload to managed S3 bucket
-- Submit BRE job via Lambda:
-  ```bash
-  aws lambda invoke --function-name atx-trigger-job \
-    --payload '{"source":"s3://atx-source-code-{account}/repos/{project}.zip",
-               "command":"atx custom def exec -n Easytrieve-Business-Rule-Extract -p /source/{project}/source-code -x -t",
-               "jobName":"BRE-{program}"}' \
-    --cli-binary-format raw-in-base64-out /dev/stdout
-  ```
-- Monitor: `aws lambda invoke --function-name atx-get-job-status --payload '{"jobId":"..."}'`
-- Download BRE from output S3, place in `bre-doc/`
-- Human review gate
+- Submit BRE job via Lambda
+- Monitor until complete
+- Download BRE, place in `bre-doc/`
+- Human review gate — user must confirm BRE before proceeding
 
 ### Epic 4: Transform + validate (per workload)
+
+**Gate:** Verify `bre-doc/` folder contains the BRE output. If empty → stop, go back to Epic 3.
+
 - Zip full workspace (source-code/ + bre-doc/ + input-data/ + output-data/)
-- Submit transformation job:
-  ```bash
-  aws lambda invoke --function-name atx-trigger-job \
-    --payload '{"source":"s3://atx-source-code-{account}/repos/{project}.zip",
-               "command":"atx custom def exec -n Easytrieve-to-Java-Transformation -p /source/{project}/source-code -x -t",
-               "jobName":"EZT-{program}",
-               "environment":{"JAVA_VERSION":"17"}}' \
-    --cli-binary-format raw-in-base64-out /dev/stdout
-  ```
-- ~10 min per program, runs in parallel for multiple programs
+- Submit transformation job with `environment:{"JAVA_VERSION":"17"}`
+- ~10 min per program (pre-built image, no install delays)
 - AWS Transform generates Java, builds with Maven, validates byte-by-byte
 
 ### Epic 5: Deliver results
-- Results in: `s3://atx-custom-output-{account}/transformations/{job}/{conversation-id}/`
-  - `code.zip` — transformed Java Spring Boot project
-  - `logs.zip` — full conversation logs
+- Results in S3: `code.zip` (Java project) + `logs.zip` (conversation)
 - Review knowledge items for continuous improvement
 
 ---
 
-## Batch Execution (multiple EZT programs)
+## Session Recovery (timeout/token expiry)
 
-For customers with multiple EZT programs, submit a batch:
+**CRITICAL:** When a job times out or token expires, NEVER restart from scratch.
+Always recover the existing session.
+
+### Capture conversation ID on submission
+
+Every job response includes a conversation ID in the output path:
+```
+s3://atx-custom-output-{account}/transformations/{job}/{conversation-id}/
+```
+
+Store this. Also available from CloudWatch logs:
 ```bash
-aws lambda invoke --function-name atx-trigger-batch-jobs \
-  --payload '{"batchName":"EZT-Portfolio-Transform",
-             "jobs":[
-               {"source":"s3://.../program1.zip","command":"atx custom def exec -n Easytrieve-to-Java-Transformation -p /source/program1/source-code -x -t","jobName":"EZT-Program1","environment":{"JAVA_VERSION":"17"}},
-               {"source":"s3://.../program2.zip","command":"atx custom def exec -n Easytrieve-to-Java-Transformation -p /source/program2/source-code -x -t","jobName":"EZT-Program2","environment":{"JAVA_VERSION":"17"}}
-             ]}' \
+aws logs filter-log-events --log-group-name /aws/batch/atx-transform \
+  --log-stream-name <logStreamName> \
+  --filter-pattern "Conversation log" --limit 1
+```
+
+### Resume an interrupted session
+
+If a job timed out or was interrupted:
+```bash
+aws lambda invoke --function-name atx-trigger-job \
+  --payload '{"source":"s3://atx-source-code-{account}/repos/{project}.zip",
+             "command":"atx --conversation-id {conversation-id}",
+             "jobName":"EZT-{program}-resume",
+             "environment":{"JAVA_VERSION":"17"}}' \
   --cli-binary-format raw-in-base64-out /dev/stdout
 ```
 
-Monitor batch: `aws lambda invoke --function-name atx-get-batch-status --payload '{"batchId":"..."}'`
+Or use `atx --resume` to continue the most recent conversation:
+```bash
+"command":"atx --resume"
+```
 
-**Validated performance:**
-- 1 EZT program (low complexity): ~10 min
-- Up to 128 concurrent programs per batch submission
-- Max 512 programs per session (split into chunks of 128)
+**Never start a new session when one was interrupted. Always resume.**
 
 ---
 
@@ -168,14 +206,17 @@ Monitor batch: `aws lambda invoke --function-name atx-get-batch-status --payload
 | `td-bootstrap.md` | No TD exists — Epics 1-2 |
 | `bre-extraction.md` | TD exists, starting workload — Epic 3 |
 | `transform-validate.md` | BRE complete — Epics 4-5 |
-| `troubleshooting.md` | Validation fails or errors |
+| `troubleshooting.md` | Validation fails, timeouts, or errors |
 
 ### Phase Detection
 
 1. Check if TDs exist (`atx custom def list`) → if not, load `td-bootstrap.md`
-2. If TDs exist but no BRE → load `bre-extraction.md`
-3. If BRE exists and approved → load `transform-validate.md`
-4. On failure → load `troubleshooting.md`
+2. If TDs exist but `bre-doc/` is empty → load `bre-extraction.md`
+3. If `bre-doc/` has content AND user approved it → load `transform-validate.md`
+4. On failure/timeout → load `troubleshooting.md`
+
+**Hard enforcement:** NEVER load `transform-validate.md` unless BRE output exists
+in the workspace. Check `bre-doc/` folder — if empty, force `bre-extraction.md`.
 
 ---
 
@@ -199,17 +240,19 @@ or drops `.ezt`, `.mac`, or `.jcl` files. Greet with:
 - Refer to jobs by name, not raw IDs
 - Always ask for S3 paths — never assume locations
 - Present batch results with CloudWatch dashboard link
+- On timeout/interruption: always resume, never restart
 
 ---
 
 ## Hard Rules (never violate)
 
-1. Never proceed without baseline output files
-2. Never auto-approve agent checkpoints — present to user first
-3. Never hardcode TD names — discover dynamically
-4. Never skip BRE generation
-5. Never start transformation without human-approved BRE
-6. On goal shift, suggest new chat session
+1. Never proceed to transformation without BRE completed and human-approved
+2. Never proceed without baseline output files in `output-data/`
+3. Never auto-approve agent checkpoints — present to user first
+4. Never hardcode TD names — discover dynamically
+5. Never restart a timed-out session — always resume with conversation ID
+6. Never run transformation without pre-built container image verified
+7. On goal shift, suggest new chat session
 
 ---
 
@@ -219,13 +262,13 @@ or drops `.ezt`, `.mac`, or `.jcl` files. Greet with:
 {
   "name": "EZT Validation Gate",
   "version": "1.0.0",
-  "description": "Confirms baseline output files exist before transformation runs",
+  "description": "Confirms BRE and baseline output exist before transformation runs",
   "when": {
     "type": "userTriggered"
   },
   "then": {
     "type": "askAgent",
-    "prompt": "Check that output-data/ contains baseline mainframe output files. If missing, stop and ask the user to supply them before proceeding."
+    "prompt": "Check that: (1) bre-doc/ contains the BRE output from Epic 3, and (2) output-data/ contains baseline mainframe output files. If EITHER is missing, stop and tell the user which step they need to complete first."
   }
 }
 ```
