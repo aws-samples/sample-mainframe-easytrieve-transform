@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "ezt-transform-mcp": {
+      "command": "node",
+      "args": ["mcp-server/dist/index.js"],
+      "env": {
+        "AWS_REGION": "us-east-1"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "ezt_check_prereqs",
+        "ezt_check_status",
+        "ezt_get_results"
+      ]
+    }
+  }
+}

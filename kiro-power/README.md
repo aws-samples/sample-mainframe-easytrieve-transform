@@ -25,7 +25,7 @@ This provides the MCP tools Kiro uses to interact with AWS Transform.
 
 ## Step 3: Install the ezt-transform Power
 
-Copy the `Kiro-power/` folder contents to your Kiro custom powers directory:
+Copy the `kiro-power/` folder contents to your Kiro custom powers directory:
 
 | Platform | Copy to |
 |---|---|
@@ -35,13 +35,20 @@ Copy the `Kiro-power/` folder contents to your Kiro custom powers directory:
 
 Example (Windows PowerShell):
 ```powershell
-Copy-Item -Recurse .\Kiro-power\* "$env:LOCALAPPDATA\Kiro\powers\ezt-transform\"
+Copy-Item -Recurse .\kiro-power\* "$env:LOCALAPPDATA\Kiro\powers\ezt-transform\"
 ```
 
 Example (macOS/Linux):
 ```bash
 mkdir -p ~/Library/Application\ Support/Kiro/powers/ezt-transform
-cp -r Kiro-power/* ~/Library/Application\ Support/Kiro/powers/ezt-transform/
+cp -r kiro-power/* ~/Library/Application\ Support/Kiro/powers/ezt-transform/
+```
+
+Then build the MCP server:
+```bash
+cd <powers-dir>/ezt-transform/mcp-server
+npm install
+npm run build
 ```
 
 Restart Kiro. You should see "Easytrieve Modernization" in the Powers panel.

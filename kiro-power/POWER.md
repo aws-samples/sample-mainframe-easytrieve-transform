@@ -97,18 +97,42 @@ If no Easytrieve TDs found → load `td-bootstrap.md` to create them.
 
 ## How It Works
 
-This power uses **Lambda+Batch remote execution** from the `aws-transform` power:
+This power includes an **MCP server** (`ezt-transform-mcp`) that handles all
+deterministic orchestration. The LLM's role is limited to:
+- Understanding what the user wants (conversational)
+- Collecting inputs (S3 paths, BRE review confirmation)
+- Calling the MCP tools in sequence
+- Presenting results in plain language
 
-1. User provides S3 paths to EZT source + input/output data
-2. Kiro zips the workspace and uploads to managed S3 bucket (`atx-source-code-{account}`)
-3. Kiro submits a job via `aws lambda invoke --function-name atx-trigger-job`
-4. AWS Batch runs `atx custom def exec` in a Fargate container with Java 17 + Maven pre-installed
-5. Results land in `s3://atx-custom-output-{account}/transformations/{job}/`
+### MCP Tools (deterministic — no LLM reasoning needed)
 
-**Pre-built container includes:** Java 8/11/17/21/25 (Corretto), Maven, Gradle, Node.js,
-Python, Git, AWS CLI, atx CLI — all baked in, zero install time at runtime.
+| Tool | What it does |
+|---|---|
+| `ezt_check_prereqs` | Verifies credentials, infrastructure, container image, TDs |
+| `ezt_prepare_workspace` | Downloads from S3, organizes 4-folder structure, zips, uploads |
+| `ezt_run_bre` | Submits BRE extraction job via Lambda |
+| `ezt_run_transform` | Submits transformation job — **REFUSES if bre-doc/ is empty** |
+| `ezt_check_status` | Polls job status, extracts conversation ID for recovery |
+| `ezt_resume_job` | Resumes interrupted job with conversation ID |
+| `ezt_get_results` | Retrieves S3 paths, validation status, download commands |
+| `ezt_run_batch` | Submits up to 128 programs in parallel |
 
-**Parallelism:** Up to 128 concurrent programs. 50 programs complete in ~12-15 min.
+### Tool call sequence (typical flow)
+
+```
+ezt_check_prereqs()
+  → ezt_prepare_workspace(source, input, output, programName)
+    → ezt_run_bre(workspaceS3Path, programName)
+      → ezt_check_status(jobId)  [poll until SUCCEEDED]
+      → [user reviews BRE]
+    → ezt_prepare_workspace(source, input, output, breDocPath, programName)
+      → ezt_run_transform(workspaceS3Path, programName)
+        → ezt_check_status(jobId)  [poll until SUCCEEDED]
+        → ezt_get_results(jobId)
+```
+
+If any job times out: `ezt_check_status` returns the `conversationId` →
+call `ezt_resume_job` instead of resubmitting.
 
 ---
 
