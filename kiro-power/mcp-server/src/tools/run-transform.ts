@@ -1,5 +1,4 @@
 import { execSync } from "child_process";
-import { existsSync } from "fs";
 import { join } from "path";
 import { invokeLambda } from "../utils/aws-helpers";
 
@@ -21,60 +20,94 @@ interface RunTransformResult {
 
 export async function runTransform(input: RunTransformInput): Promise<RunTransformResult> {
   const jobName = `EZT-${input.programName}`;
+  const tmpCheck = join(process.env.TEMP || "/tmp", `bre-check-${Date.now()}`);
 
-  // HARD GATE: Verify BRE exists in the workspace
-  // Download the zip and check bre-doc/ is non-empty
-  const tmpCheck = join(process.env.TEMP || "/tmp", `bre-check-${input.programName}`);
+  // HARD GATE: Download zip and verify bre-doc/ AND output-data/ are non-empty
+  let breFileCount = 0;
+  let outputFileCount = 0;
 
   try {
-    // Download and inspect the zip for bre-doc/ contents
-    execSync(`rm -rf "${tmpCheck}" && mkdir -p "${tmpCheck}"`, { stdio: "pipe" });
+    execSync(`rmdir /s /q "${tmpCheck}" 2>nul & mkdir "${tmpCheck}"`, { stdio: "pipe", shell: "cmd.exe" });
     execSync(`aws s3 cp "${input.workspaceS3Path}" "${tmpCheck}/workspace.zip" --quiet`, { stdio: "pipe" });
 
-    // List bre-doc/ contents in the zip
-    const breContents = execSync(
-      `unzip -l "${tmpCheck}/workspace.zip" | grep "bre-doc/" | grep -v "bre-doc/$" | wc -l`,
-      { stdio: "pipe" }
-    ).toString().trim();
-
-    const breFileCount = parseInt(breContents) || 0;
-
-    // Clean up
-    execSync(`rm -rf "${tmpCheck}"`, { stdio: "pipe" });
-
-    if (breFileCount === 0) {
-      return {
-        success: false,
-        jobName,
-        blocked: true,
-        error: "BLOCKED: bre-doc/ folder is empty in the workspace. The Business Rule Extract must be generated and reviewed before transformation can proceed.",
-        nextStep: "Run ezt_run_bre first to generate the BRE. After the user reviews and approves the BRE, re-prepare the workspace with the BRE included (pass breDocPath to ezt_prepare_workspace), then retry this tool.",
-      };
+    // Count files in bre-doc/ (excluding the directory entry itself)
+    try {
+      const breOutput = execSync(
+        `powershell -Command "(Invoke-Expression 'tar -tf ${tmpCheck}/workspace.zip' | Select-String 'bre-doc/' | Where-Object { $_ -notmatch 'bre-doc/$' }).Count"`,
+        { stdio: "pipe" }
+      ).toString().trim();
+      breFileCount = parseInt(breOutput) || 0;
+    } catch {
+      // Fallback for Linux/macOS
+      try {
+        const breOutput = execSync(
+          `unzip -l "${tmpCheck}/workspace.zip" | grep "bre-doc/" | grep -v " bre-doc/$" | wc -l`,
+          { stdio: "pipe" }
+        ).toString().trim();
+        breFileCount = parseInt(breOutput) || 0;
+      } catch {
+        breFileCount = 0;
+      }
     }
 
-    // Also verify output-data/ is non-empty
-    const outputContents = execSync(
-      `unzip -l "${tmpCheck}/workspace.zip" | grep "output-data/" | grep -v "output-data/$" | wc -l`,
-      { stdio: "pipe" }
-    ).toString().trim();
-
-    const outputFileCount = parseInt(outputContents) || 0;
-
-    if (outputFileCount === 0) {
-      return {
-        success: false,
-        jobName,
-        blocked: true,
-        error: "BLOCKED: output-data/ folder is empty. Baseline mainframe output files are required for validation.",
-        nextStep: "Ask the user to provide baseline output files from their mainframe execution.",
-      };
+    // Count files in output-data/ (excluding the directory entry itself)
+    try {
+      const outputOutput = execSync(
+        `powershell -Command "(Invoke-Expression 'tar -tf ${tmpCheck}/workspace.zip' | Select-String 'output-data/' | Where-Object { $_ -notmatch 'output-data/$' }).Count"`,
+        { stdio: "pipe" }
+      ).toString().trim();
+      outputFileCount = parseInt(outputOutput) || 0;
+    } catch {
+      try {
+        const outputOutput = execSync(
+          `unzip -l "${tmpCheck}/workspace.zip" | grep "output-data/" | grep -v " output-data/$" | wc -l`,
+          { stdio: "pipe" }
+        ).toString().trim();
+        outputFileCount = parseInt(outputOutput) || 0;
+      } catch {
+        outputFileCount = 0;
+      }
     }
+
+    // Cleanup
+    try { execSync(`rmdir /s /q "${tmpCheck}" 2>nul`, { stdio: "pipe", shell: "cmd.exe" }); } catch {}
+    try { execSync(`rm -rf "${tmpCheck}"`, { stdio: "pipe" }); } catch {}
   } catch (err: any) {
-    // If zip inspection fails, proceed but warn
-    // The TD will catch it during execution anyway
+    // If we can't even download/inspect the zip, BLOCK — don't silently proceed
+    try { execSync(`rmdir /s /q "${tmpCheck}" 2>nul`, { stdio: "pipe", shell: "cmd.exe" }); } catch {}
+    try { execSync(`rm -rf "${tmpCheck}"`, { stdio: "pipe" }); } catch {}
+    return {
+      success: false,
+      jobName,
+      blocked: true,
+      error: `BLOCKED: Could not verify workspace contents. Error: ${err.message || err}`,
+      nextStep: "Verify the S3 path is correct and you have access to the managed bucket.",
+    };
   }
 
-  // Submit the transformation job
+  // GATE 1: BRE must exist
+  if (breFileCount === 0) {
+    return {
+      success: false,
+      jobName,
+      blocked: true,
+      error: "BLOCKED: bre-doc/ folder is empty in the workspace. The Business Rule Extract must be generated and reviewed before transformation can proceed.",
+      nextStep: "Run ezt_run_bre first to generate the BRE. After the user reviews and approves the BRE, re-prepare the workspace with the BRE included (pass breDocPath to ezt_prepare_workspace), then retry this tool.",
+    };
+  }
+
+  // GATE 2: Baseline output must exist
+  if (outputFileCount === 0) {
+    return {
+      success: false,
+      jobName,
+      blocked: true,
+      error: "BLOCKED: output-data/ folder is empty. Baseline mainframe output files are required for functional validation.",
+      nextStep: "Ask the user to provide baseline output files from their mainframe execution.",
+    };
+  }
+
+  // Gates passed — submit the transformation job
   const zipFile = input.workspaceS3Path.split("/").pop()!.replace(".zip", "");
   const codePath = `/source/${zipFile}/source-code`;
 
