@@ -1,0 +1,12 @@
+{
+  "name": "EZT Workflow Enforcement",
+  "version": "1.0.0",
+  "description": "Ensures BRE step is not skipped regardless of which steering files are loaded",
+  "when": {
+    "type": "promptSubmit"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "WORKFLOW CHECK: If you are about to submit an EZT-to-Java transformation job (atx custom def exec with Easytrieve-to-Java-Transformation), verify the workspace includes a non-empty bre-doc/ folder. If the BRE has not been generated and reviewed by the user, you MUST run the BRE extraction step first. Do NOT skip this step under any circumstances. Also verify output-data/ is non-empty (baseline files required for validation)."
+  }
+}

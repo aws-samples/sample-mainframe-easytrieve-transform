@@ -201,12 +201,18 @@ Or use `atx --resume` to continue the most recent conversation:
 
 ## Steering Files
 
-| File | When to load |
-|---|---|
-| `td-bootstrap.md` | No TD exists — Epics 1-2 |
-| `bre-extraction.md` | TD exists, starting workload — Epic 3 |
-| `transform-validate.md` | BRE complete — Epics 4-5 |
-| `troubleshooting.md` | Validation fails, timeouts, or errors |
+| File | Inclusion | When active |
+|---|---|---|
+| `td-bootstrap.md` | manual | No TD exists — Epics 1-2 |
+| `bre-extraction.md` | manual | TD exists, starting workload — Epic 3 |
+| `transform-validate.md` | manual | BRE complete — Epics 4-5 |
+| `troubleshooting.md` | manual | Validation fails, timeouts, or errors |
+
+**Important:** The critical workflow gates (BRE required, baseline required) are
+enforced BOTH in this POWER.md file AND via the `ezt-workflow-enforcement` hook.
+This means even if a steering file fails to load, the enforcement still applies.
+The steering files provide detailed step-by-step guidance but the guardrails
+are not dependent on them.
 
 ### Phase Detection
 
@@ -253,6 +259,19 @@ or drops `.ezt`, `.mac`, or `.jcl` files. Greet with:
 5. Never restart a timed-out session — always resume with conversation ID
 6. Never run transformation without pre-built container image verified
 7. On goal shift, suggest new chat session
+
+**BRE ENFORCEMENT (inline — do not rely on steering files for this):**
+
+Before submitting ANY `atx custom def exec -n Easytrieve-to-Java-Transformation` job,
+you MUST verify that the `bre-doc/` folder in the workspace zip is non-empty.
+If it is empty or missing, STOP and tell the user:
+
+> "The Business Rule Extract hasn't been generated yet. This is a required step —
+> it extracts the business logic from your EZT source and drives the accuracy of
+> the Java transformation. Let me run the BRE step first."
+
+Then run the BRE extraction (Epic 3) before proceeding. This check applies
+regardless of which steering file is loaded or whether steering files loaded at all.
 
 ---
 
