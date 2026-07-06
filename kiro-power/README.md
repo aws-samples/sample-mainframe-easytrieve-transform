@@ -44,11 +44,10 @@ mkdir -p ~/Library/Application\ Support/Kiro/powers/ezt-transform
 cp -r kiro-power/* ~/Library/Application\ Support/Kiro/powers/ezt-transform/
 ```
 
-Then build the MCP server:
+Then install the MCP server dependencies:
 ```bash
 cd <powers-dir>/ezt-transform/mcp-server
 npm install
-npm run build
 ```
 
 Restart Kiro. You should see "Easytrieve Modernization" in the Powers panel.
