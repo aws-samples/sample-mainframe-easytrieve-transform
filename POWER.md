@@ -1,5 +1,5 @@
 ---
-name: "ezt-transform"
+name: "sample-mainframe-easytrieve-transform"
 displayName: "Easytrieve Modernization"
 description: "Transform mainframe Broadcom Easytrieve (EZT) programs to Java 17 (Spring Boot) using AWS Transform custom — guided, interactive, end-to-end."
 keywords:

@@ -1,294 +1,141 @@
-# Easytrieve to Modern Languages Transformation with AWS Transform Custom
+# Easytrieve Modernization
 
-## Important Notice
+Transform mainframe Broadcom Easytrieve (EZT) programs to Java 17 (Spring Boot 3.x)
+using [AWS Transform custom](https://docs.aws.amazon.com/prescriptive-guidance/latest/patterns/transform-easytrieve-modern-languages.html).
 
-**This infrastructure template is provided as a reference implementation.** Before deploying to production, conduct a comprehensive security review, penetration testing, IAM audit, and compliance validation. Consult with your security and cloud architecture teams to ensure alignment with your organization's policies and requirements.
+---
 
-## Summary
+## Two Solution Paths
 
-This repository provides Infrastructure as Code (IaC) to deploy a secure AWS environment for transforming Easytrieve code to modern languages using AWS Transform Custom. It creates a fully private EC2 instance with all necessary tools, permissions, and network configurations following AWS security best practices.
+| Path | Best for | How |
+|---|---|---|
+| **Kiro Power (recommended)** | End-to-end automation, team use | Install this repo as a Kiro Power — Kiro orchestrates everything |
+| **Manual (CDK/CLI)** | Learning, customization, debugging | Deploy EC2 via CDK, run `atx` CLI commands manually |
 
-## What It Does
+---
 
-- Deploys an EC2 Linux instance (Amazon Linux 2023) in a **private subnet** with Git, Node.js, and ATX CLI pre-installed
-- Configures IAM roles with least-privilege access to AWS Transform, Transform Custom, and S3
-- Sets up VPC with **NAT Gateway** for secure outbound internet access (ATX CLI installation)
-- Implements **4 VPC endpoints** for private AWS service connectivity (Transform Custom, SSM, S3)
-- Enables SSM Session Manager for secure, keyless instance access
-- Implements enterprise-grade security (EBS encryption, IMDSv2, no public IP, VPC endpoint policies)
+## Path 1: Kiro Power (recommended)
 
-## Target Architecture
+Kiro handles everything: workspace setup, BRE extraction, Java transformation,
+byte-by-byte validation — all running serverless on AWS Batch.
+
+### Step 1: Install Kiro
+
+Download from [kiro.dev](https://kiro.dev). Sign in with your AWS Builder ID.
+
+### Step 2: Install the aws-transform Power
+
+1. Open Kiro → **Powers** panel (left sidebar)
+2. Search for **"aws-transform"** → Click **Install**
+
+### Step 3: Install this Power
+
+Point Kiro at this GitHub repo:
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      VPC (10.0.0.0/16)                          │
-│                                                                 │
-│  ┌──────────────────────┐      ┌──────────────────────────┐     │
-│  │  Public Subnet       │      │  Private Subnet          │     │
-│  │  (10.0.1.0/24)       │      │  (10.0.2.0/24)           │     │
-│  │                      │      │                          │     │
-│  │  ┌────────────────┐  │      │  ┌────────────────────┐  │     │
-│  │  │  NAT Gateway   │◄─┼──────┼──│  EC2 Instance      │  │     │
-│  │  │  (Elastic IP)  │  │      │  │  (No Public IP)    │  │     │
-│  │  └────────────────┘  │      │  │  - Git, Node, ATX  │  │     │
-│  │         │            │      │  │  - IAM Role        │  │     │
-│  │         │            │      │  └────────────────────┘  │     │
-│  │  ┌──────▼──────────┐ │      │           │              │     │
-│  │  │ Internet Gateway│ │      │  ┌────────▼──────────┐   │     │
-│  │  └─────────────────┘ │      │  │  VPC Endpoints    │   │     │
-│  └──────────────────────┘      │  │  - Transform      │   │     │
-│                                │  │  - SSM (3)        │   │     │
-│                                │  │  - S3             │   │     │
-│                                │  └───────────────────┘   │     │
-│                                └──────────────────────────┘     │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-                    AWS Transform Custom
-                    AWS S3
-                    Internet (ATX CLI download)
+https://github.com/aws-samples/sample-mainframe-easytrieve-transform
 ```
 
-## Prerequisites
+Or install manually — clone and run:
+```bash
+git clone https://github.com/aws-samples/sample-mainframe-easytrieve-transform
+cd sample-mainframe-easytrieve-transform/mcp-server
+npm install
+```
 
-- AWS Account with appropriate permissions
-- AWS CLI configured with credentials
-- For CDK deployment:
-  - Node.js 20+ installed
-  - Python 3.8+ installed
-  - AWS CDK CLI installed (`npm install -g aws-cdk`)
+Then tell Kiro to use it, or copy to your powers directory:
 
-## Deployment Options
+| Platform | Copy to |
+|---|---|
+| Windows | `%LOCALAPPDATA%\Kiro\powers\sample-mainframe-easytrieve-transform\` |
+| macOS | `~/Library/Application Support/Kiro/powers/sample-mainframe-easytrieve-transform/` |
+| Linux | `~/.local/share/Kiro/powers/sample-mainframe-easytrieve-transform/` |
 
-### Option 1: CloudFormation (Quickest)
+Restart Kiro. You should see **"Easytrieve Modernization"** in the Powers panel.
+
+### Step 4: Configure AWS Credentials
 
 ```bash
-aws cloudformation create-stack \
-  --stack-name easytrieve-transform-stack \
-  --template-body file://easytrieve-transform-stack.yaml \
-  --capabilities CAPABILITY_IAM \
-  --region us-east-1
+aws configure
+# Region: us-east-1
+# Requires: AWSTransformCustomFullAccess policy
+aws sts get-caller-identity  # verify
 ```
 
-**Monitor deployment:**
-```bash
-aws cloudformation describe-stacks \
-  --stack-name easytrieve-transform-stack \
-  --region us-east-1 \
-  --query 'Stacks[0].StackStatus'
-```
+### Step 5: Deploy Remote Infrastructure (one-time per account)
 
-### Option 2: AWS CDK
+Open a Kiro chat and say:
+> "Set up AWS Transform custom remote infrastructure for EZT transformations"
 
-**1. Install dependencies:**
-```bash
-python3 -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-```
+Or see POWER.md for manual deployment instructions.
 
-**2. Bootstrap CDK (first time only):**
-```bash
-cdk bootstrap aws://ACCOUNT-ID/us-east-1
-```
+### Step 6: Use It
 
-**3. Deploy:**
-```bash
-cdk deploy
-```
+Open a Kiro chat:
+> "I want to transform my Easytrieve programs to Java.
+> Source: s3://my-bucket/ezt-source/
+> Input data: s3://my-bucket/input-data/
+> Baseline output: s3://my-bucket/output-data/"
 
-## Getting Started with Easytrieve Transformation
+Kiro does the rest (~10 min per program, 128 concurrent).
 
-Once deployed, connect to your instance and start transforming:
+---
 
-**1. Connect to the instance:**
+## Path 2: Manual (CDK + CLI)
 
-**Via AWS Console (Recommended):**
-1. Go to AWS Console → EC2 → Instances
-2. Select your instance (Name: `TransformCustomEC2Instance`)
-3. Click "Connect" button at the top
-4. Choose "Session Manager" tab
-5. Click "Connect" button
+For manual step-by-step execution, see **[README-CDK.md](README-CDK.md)**.
 
-**Via AWS CLI:**
-```bash
-# Get instance ID from stack outputs
-aws cloudformation describe-stacks \
-  --stack-name easytrieve-transform-stack \
-  --query 'Stacks[0].Outputs[?OutputKey==`InstanceId`].OutputValue' \
-  --output text
+This deploys an EC2 instance with `atx` CLI pre-installed. You run the APG epics
+manually via SSH/SSM:
+1. Deploy EC2 via CDK/CloudFormation
+2. Create transformation definitions using `atx` CLI
+3. Run BRE extraction
+4. Run transformation + validation
+5. Review results
 
-# Connect via SSM
-aws ssm start-session --target <instance-id> --region us-east-1
-```
+---
 
-**2. Verify installations:**
-```bash
-git --version
-node --version
-atx --version
-```
-
-**3. Upload transformation documents to EC2:**
-
-Upload the required transformation files from the `documents/` folder to your EC2 instance.
-
-**4. Create custom transformation definition:**
-
-Use the ATX CLI to create a custom transformation definition by providing the paths to your uploaded files. ATX will generate a custom transformation definition JSON file that combines your base definition, summaries, and reference documentation.
-
-**5. Review and publish transformation definition:**
-
-Review the generated custom transformation definition to ensure it meets your requirements. Once satisfied, publish it to AWS Transform Custom with a descriptive name. This makes it available for use in transformation jobs.
-
-**6. Run Easytrieve transformations:**
-
-Upload your Easytrieve source code to S3, then use the ATX CLI to start a transformation job with your published custom transformation definition. Monitor the transformation progress and download the transformed code when complete. Refer to the [AWS Transform Custom Getting Started Guide](https://docs.aws.amazon.com/transform/latest/userguide/custom-get-started.html) for detailed ATX CLI commands and transformation workflow.
-
-## Document Files Structure
-
-The `documents/` folder contains required files for custom transformation:
+## Repository Structure
 
 ```
-documents/
-├── transformation_definition.md            # Base transformation definition
-├── bre_transformation_definition.md        # Business Rule Extract (BRE) transformation definition
-├── summaries.md                            # Transformation summaries
-└── ca-easytrieve-report-generator-11-6.txt # Easytrieve reference documentation
+sample-mainframe-easytrieve-transform/
+├── POWER.md                          # Kiro Power definition
+├── README.md                         # This file
+├── README-CDK.md                     # Manual path instructions (CDK/CLI)
+├── mcp.json                          # MCP server config for Kiro
+├── hooks/                            # Kiro agent hooks (workflow enforcement)
+├── steering/                         # Phase-specific workflow guides
+├── mcp-server/                       # Deterministic orchestration server (Node.js)
+│   ├── src/                          # TypeScript source
+│   └── dist/                         # Compiled JS (ready to run)
+├── test/                             # Sample EZT test workload
+├── documents/                        # Transformation definition source files
+│   ├── transformation_definition.md
+│   ├── bre_transformation_definition.md
+│   ├── summaries.md
+│   └── ca-easytrieve-report-generator-11-6.txt
+├── app.py                            # CDK app entry point
+├── easytrieve_transform_stack.py     # CDK stack (EC2 infrastructure)
+├── easytrieve-transform-stack.yaml   # CloudFormation template
+├── cdk.json                          # CDK config
+└── requirements.txt                  # CDK Python dependencies
 ```
 
-**Purpose of each file:**
-- **transformation_definition.md**: Defines how Easytrieve constructs map to target languages
-- **bre_transformation_definition.md**: Defines the 5-phase process for extracting comprehensive business rules from Easytrieve programs, COBOL programs, JCL job streams, copybooks, and control cards into two structured BRE documents that serve as input for downstream code transformation
-- **summaries.md**: Contains transformation rules and patterns
-- **ca-easytrieve-report-generator-11-6.txt**: CA Easytrieve Report Generator reference manual for context
+---
 
-## What's Included
+## Performance (Validated)
 
-| Component | Details |
-|-----------|---------|
-| **EC2 Instance** | t3.medium, Amazon Linux 2023, 20GB encrypted EBS, **private subnet** |
-| **Pre-installed Tools** | Git, Node.js, NPM, ATX CLI, AWS CLI |
-| **IAM Permissions** | Transform/Transform Custom (full), S3 (object operations only) |
-| **Network** | Private subnet with NAT Gateway + 4 VPC endpoints |
-| **Security** | No public IP, SSM Session Manager, IMDSv2, encrypted storage, VPC endpoint policies |
-| **Region** | us-east-1 |
+| Metric | Result |
+|---|---|
+| Single EZT program (low complexity) | ~10 min |
+| Parallel capacity | 128 concurrent per batch |
+| Max per session | 512 programs |
+| Infrastructure cost when idle | $0 (serverless) |
 
-## Security Features
+---
 
-### Network Security
-- **No Public IP**: Instance deployed in private subnet, completely isolated from internet
-- **NAT Gateway**: Provides outbound-only internet access for software downloads
-- **VPC Endpoints**: Private connectivity to AWS services (Transform Custom, SSM, S3)
-- **Endpoint Policies**: Transform Custom endpoint restricted to same AWS account only
-- **No Inbound Rules**: Security group blocks all inbound traffic
+## Links
 
-### Data Security
-- **EBS Encryption**: All volumes encrypted at rest with AWS-managed keys
-- **IMDSv2 Enforced**: Protection against SSRF attacks (HttpTokens: required)
-- **Encrypted Transit**: All AWS service communication over HTTPS
-
-### Access Control
-- **SSM Session Manager Only**: No SSH keys, no open ports, IAM-based authentication
-- **Least Privilege IAM**: S3 permissions limited to object operations (no bucket deletion/policy changes)
-- **Max Session Duration**: IAM role sessions limited to 1 hour
-- **CloudTrail Integration**: All SSM sessions logged for audit
-
-### Compliance
-- **Latest AMI**: Amazon Linux 2023 with automatic security updates
-- **Resource Tagging**: Environment: Production, ManagedBy: CDK/CloudFormation
-- **GP3 Volumes**: Modern, performant storage with encryption
-
-## Additional Security Recommendations
-
-For production deployments, consider implementing these additional security con
-
-- **MFA for SSM Access**: Require MFA for all IAM users/roles that can initiate SSM sessions to the EC2 instance
-- **Software Integrity Verification**: Add checksum verification for Node.js and ATX CLI downloads in UserData, or use pre-baked AMIs with verified software
-- **GuardDuty**: Enable GuardDuty for runtime threat detection on the EC2 instance
-- **AWS Budgets**: Set up cost anomaly alerts to detect unexpected resource consumption
-
-## Cleanup
-
-**CloudFormation:**
-```bash
-aws cloudformation delete-stack \
-  --stack-name easytrieve-transform-stack \
-  --region us-east-1
-```
-
-**CDK:**
-```bash
-cdk destroy
-```
-
-## Troubleshooting
-
-**Stack deletion fails (subnet in use):**
-```bash
-# VPC endpoint network interfaces may not delete immediately
-# Find and manually delete network interfaces:
-
-# Get VPC ID
-VPC_ID=$(aws cloudformation describe-stacks \
-  --stack-name easytrieve-transform-stack \
-  --query 'Stacks[0].Outputs[?OutputKey==`VPCId`].OutputValue' \
-  --output text)
-
-# List network interfaces
-aws ec2 describe-network-interfaces \
-  --filters "Name=vpc-id,Values=$VPC_ID" \
-  --query 'NetworkInterfaces[?Status==`available`].[NetworkInterfaceId,Description]' \
-  --output table
-
-# Delete each network interface
-aws ec2 delete-network-interface --network-interface-id <ENI-ID>
-
-# Retry stack deletion
-cdk destroy
-# or
-aws cloudformation delete-stack --stack-name easytrieve-transform-stack
-```
-
-**ATX CLI not found:**
-```bash
-# Check installation location
-find /root -name "atx" -type f
-# Add to PATH if needed
-export PATH="$PATH:/root/.local/bin"
-```
-
-**Permission denied errors:**
-```bash
-# Verify IAM role
-aws sts get-caller-identity
-# Should show the EC2 instance role
-```
-
-**VPC endpoint connectivity:**
-```bash
-# Test Transform Custom endpoint (should resolve to private IP)
-nslookup transform-custom.us-east-1.api.aws
-# Should resolve to 10.0.2.x (private subnet)
-
-# Test internet access via NAT Gateway
-curl -I https://desktop-release.transform.us-east-1.api.aws
-# Should return: HTTP 200 OK
-
-# Verify no public IP
-curl -s http://169.254.169.254/latest/meta-data/public-ipv4
-# Should return: empty or error
-```
-
-## Support
-
-For issues with:
-- **Infrastructure deployment**: Check CloudFormation/CDK logs
-- **AWS Transform Custom**: See [AWS Transform Custom Documentation](https://docs.aws.amazon.com/transform/latest/userguide/custom.html)
-- **Easytrieve transformation**: Refer to AWS Transform Custom user guide
-
-## Security
-See CONTRIBUTING for more information.
-
-## Licence
-This library is licensed under the MIT-0 License. See the LICENSE file.
+- [APG Pattern](https://docs.aws.amazon.com/prescriptive-guidance/latest/patterns/transform-easytrieve-modern-languages.html)
+- [AWS Transform Custom Docs](https://docs.aws.amazon.com/transform/latest/userguide/custom.html)
+- [AWS Transform Pricing](https://aws.amazon.com/transform/pricing/)
