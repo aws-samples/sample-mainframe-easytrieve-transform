@@ -8,17 +8,18 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@aws-sdk/client-cloudformation": "^3.600.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.600.0",
     "@aws-sdk/client-lambda": "^3.600.0",
     "@aws-sdk/client-s3": "^3.600.0",
-    "@aws-sdk/client-cloudformation": "^3.600.0",
     "@aws-sdk/client-sts": "^3.600.0",
-    "@aws-sdk/client-cloudwatch-logs": "^3.600.0",
-    "archiver": "^7.0.0"
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "archiver": "^7.0.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "typescript": "^5.4.0",
+    "@types/archiver": "^6.0.0",
     "@types/node": "^20.0.0",
-    "@types/archiver": "^6.0.0"
+    "typescript": "^5.4.0"
   }
 }
