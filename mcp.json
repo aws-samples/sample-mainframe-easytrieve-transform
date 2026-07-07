@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "ezt-transform-mcp": {
-      "command": "node",
-      "args": ["mcp-server/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "github:aws-samples/sample-mainframe-easytrieve-transform"],
       "env": {
         "AWS_REGION": "us-east-1"
       },

@@ -1,0 +1,13 @@
+{
+  "name": "ezt-transform-mcp",
+  "version": "1.2.0",
+  "description": "MCP server for EZT-to-Java transformation orchestration via AWS Transform custom",
+  "bin": {
+    "ezt-transform-mcp": "mcp-server/dist/index.js"
+  },
+  "license": "MIT-0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aws-samples/sample-mainframe-easytrieve-transform"
+  }
+}
