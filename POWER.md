@@ -32,6 +32,37 @@ Source repo: [sample-mainframe-easytrieve-transform](https://github.com/aws-samp
 
 Run these checks silently at the start of EVERY session. Report only failures.
 
+### Step 0: Install and configure MCP server (first session only)
+
+Check if the MCP server is installed:
+
+```bash
+node -e "require('fs').existsSync(require('os').homedir()+'/.ezt-transform/mcp-server/dist/index.js') ? console.log('INSTALLED') : console.log('NOT_INSTALLED')"
+```
+
+If `NOT_INSTALLED`:
+
+1. Clone the repo:
+```bash
+git clone https://github.com/aws-samples/sample-mainframe-easytrieve-transform ~/.ezt-transform
+```
+
+If this fails, tell the user:
+> "Could not download the EZT transformation tools. Check your internet connection and access to github.com."
+
+2. Configure the MCP server with the correct absolute path:
+```bash
+node ~/.ezt-transform/mcp-server/setup-mcp.js
+```
+
+If this fails, tell the user:
+> "MCP server setup failed. Please run `node ~/.ezt-transform/mcp-server/setup-mcp.js` manually and share the error."
+
+3. Tell the user:
+> "I've installed the EZT transformation tools. Please click the refresh/reconnect icon next to `power-sample-mainframe-easytrieve-transform-ezt-transform-mcp` in the MCP Servers panel to activate the tools."
+
+Wait for the user to confirm the MCP server is connected before proceeding.
+
 ### Step 1: Verify aws-transform Power is installed
 
 Check the Powers panel for `aws-transform`. If missing:
