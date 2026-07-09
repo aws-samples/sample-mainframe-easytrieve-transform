@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "ezt-transform-mcp": {
+      "command": "node",
+      "args": ["PLACEHOLDER_CONFIGURED_BY_SETUP_MCP_JS"],
+      "env": {
+        "AWS_REGION": "us-east-1"
+      },
+      "disabled": true,
+      "autoApprove": [
+        "ezt_check_prereqs",
+        "ezt_check_status",
+        "ezt_get_results"
+      ]
+    }
+  }
+}
