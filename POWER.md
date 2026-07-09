@@ -65,6 +65,25 @@ If this fails, tell the user:
 
 Wait for the user to confirm the MCP server is connected before proceeding.
 
+### Step 0b: Verify MCP server is connected (BLOCKING GATE)
+
+**DO NOT PROCEED PAST THIS POINT UNTIL THIS CHECK PASSES.**
+
+Try calling the `ezt_check_prereqs` tool. If it responds with results, the MCP server
+is connected — proceed to Step 1.
+
+If the tool call fails or is unavailable:
+> "The MCP server is not connected yet. Please:
+> 1. Open the **MCP Servers** panel (left sidebar)
+> 2. Find `power-sample-mainframe-easytrieve-transform-ezt-transform-mcp`
+> 3. Click the **refresh/reconnect** icon
+> 4. Tell me when it shows a green checkmark"
+
+**STOP. DO NOT CONTINUE. Wait for the user to confirm connection.**
+
+After the user confirms, try `ezt_check_prereqs` again. If it still fails, repeat
+the message above. Only proceed when the tool call succeeds.
+
 ### Step 1: Verify aws-transform Power is installed
 
 Check the Powers panel for `aws-transform`. If missing:
@@ -73,18 +92,16 @@ Check the Powers panel for `aws-transform`. If missing:
 
 Stop and wait.
 
-### Step 2: Run all prerequisite checks via MCP
+### Step 2: Run prerequisite checks
 
-Once the MCP server is connected, call `ezt_check_prereqs` to verify everything in one shot.
-This checks AWS credentials, remote infrastructure, and Lambda functions.
+Call `ezt_check_prereqs`. This returns pass/fail for AWS credentials, remote
+infrastructure, and Lambda functions. Present the results to the user.
 
-If `ezt_check_prereqs` is available and returns results, use those directly.
-If the MCP tool is not available, fall back to the shell commands below:
+If any check fails, tell the user exactly what to fix and stop.
+If all pass, proceed directly to asking the user for their S3 paths.
 
-```bash
-aws sts get-caller-identity
-aws cloudformation describe-stacks --stack-name AtxInfrastructureStack --query 'Stacks[0].StackStatus' --output text --region us-east-1
-```
+**DO NOT fall back to shell commands. DO NOT offer the user choices about how to
+check prerequisites. The MCP tool does everything — just call it and present results.**
 
 If infrastructure is not deployed:
 > "The remote execution infrastructure is not deployed. I'll help you set it up —
