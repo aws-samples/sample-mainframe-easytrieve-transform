@@ -60,10 +60,8 @@ node ~/.ezt-transform/mcp-server/setup-mcp.js
 If this fails, tell the user:
 > "MCP server setup failed. Please run `node ~/.ezt-transform/mcp-server/setup-mcp.js` manually and share the error."
 
-3. Tell the user:
-> "I've configured the EZT transformation tools. Please click the refresh/reconnect icon next to `power-sample-mainframe-easytrieve-transform-ezt-transform-mcp` in the MCP Servers panel to activate the tools."
-
-Wait for the user to confirm the MCP server is connected before proceeding.
+3. After setup-mcp.js runs, Kiro automatically detects the config change and connects
+the MCP server. Proceed directly to Step 0b — do NOT ask the user to manually reconnect.
 
 ### Step 0b: Verify MCP server is connected (BLOCKING GATE)
 
@@ -73,16 +71,11 @@ Try calling the `ezt_check_prereqs` tool. If it responds with results, the MCP s
 is connected — proceed to Step 1.
 
 If the tool call fails or is unavailable:
-> "The MCP server is not connected yet. Please:
-> 1. Open the **MCP Servers** panel (left sidebar)
-> 2. Find `power-sample-mainframe-easytrieve-transform-ezt-transform-mcp`
-> 3. Click the **refresh/reconnect** icon
-> 4. Tell me when it shows a green checkmark"
+> "The MCP server is not responding. Please click the refresh icon next to
+> `power-sample-mainframe-easytrieve-transform-ezt-transform-mcp` in the MCP Servers panel,
+> then let me know."
 
-**STOP. DO NOT CONTINUE. Wait for the user to confirm connection.**
-
-After the user confirms, try `ezt_check_prereqs` again. If it still fails, repeat
-the message above. Only proceed when the tool call succeeds.
+**STOP. DO NOT CONTINUE. Wait for the user to confirm, then retry the tool call.**
 
 ### Step 1: Verify aws-transform Power is installed
 
