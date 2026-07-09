@@ -73,58 +73,27 @@ Check the Powers panel for `aws-transform`. If missing:
 
 Stop and wait.
 
-### Step 2: Verify AWS credentials
+### Step 2: Run all prerequisite checks via MCP
+
+Once the MCP server is connected, call `ezt_check_prereqs` to verify everything in one shot.
+This checks AWS credentials, remote infrastructure, and Lambda functions.
+
+If `ezt_check_prereqs` is available and returns results, use those directly.
+If the MCP tool is not available, fall back to the shell commands below:
 
 ```bash
 aws sts get-caller-identity
+aws cloudformation describe-stacks --stack-name AtxInfrastructureStack --query 'Stacks[0].StackStatus' --output text --region us-east-1
 ```
 
-If fails:
-> "AWS credentials are not configured. Run `aws configure` with credentials that
-> have the `AWSTransformCustomFullAccess` managed policy attached."
-
-### Step 3: Verify remote infrastructure
-
-```bash
-aws cloudformation describe-stacks --stack-name AtxInfrastructureStack \
-  --query 'Stacks[0].StackStatus' --output text --region us-east-1
-```
-
-If not `CREATE_COMPLETE` or `UPDATE_COMPLETE`:
+If infrastructure is not deployed:
 > "The remote execution infrastructure is not deployed. I'll help you set it up —
 > it takes about 5 minutes and costs nothing when idle."
 
 Then guide through deployment using the `aws-transform` power's remote execution flow.
 
-### Step 4: Verify pre-built container image (CRITICAL)
-
-The Fargate container MUST use the pre-built image that includes Java 17, Maven 3.6+,
-and atx CLI. Verify:
-
-```bash
-cd ~/.aws/atx/custom/remote-infra 2>/dev/null && \
-  node -e "console.log(require('./cdk.json').context.prebuiltImageUri || 'NOT_SET')"
-```
-
-Expected: `public.ecr.aws/d9h8z6l7/aws-transform:latest`
-
-If `NOT_SET` or empty:
-> "⚠️ The container is not configured to use the pre-built image. This means Java and
-> Maven need to be installed on every run, adding 20+ minutes of delay.
->
-> Fix: Set `prebuiltImageUri` in `~/.aws/atx/custom/remote-infra/cdk.json` to
-> `public.ecr.aws/d9h8z6l7/aws-transform:latest` and redeploy with `./setup.sh`."
-
-**Do NOT proceed until the pre-built image is confirmed. This is the #1 cause of
-slow transformations and timeouts.**
-
-### Step 5: Verify transformation definitions exist
-
-```bash
-atx custom def list --json 2>/dev/null | grep -i easytrieve
-```
-
-If no Easytrieve TDs found → load `td-bootstrap.md` to create them.
+If all prereqs pass, proceed directly to asking the user for their S3 paths.
+Do NOT ask the user to manually run checks — use the MCP tools automatically.
 
 ---
 
