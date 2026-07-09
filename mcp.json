@@ -1,12 +1,12 @@
 {
   "mcpServers": {
     "ezt-transform-mcp": {
-      "command": "npx",
-      "args": ["-y", "github:aws-samples/sample-mainframe-easytrieve-transform"],
+      "command": "node",
+      "args": ["~/.ezt-transform/mcp-server/dist/index.js"],
       "env": {
         "AWS_REGION": "us-east-1"
       },
-      "disabled": false,
+      "disabled": true,
       "autoApprove": [
         "ezt_check_prereqs",
         "ezt_check_status",
